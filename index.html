@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#08020f" />
+<title>$AVAR Tamagotchi</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+<style>
+:root {
+  --bg: #08020f; --bg-2: #1a0a2e; --neon-cyan: #00ffe0; --neon-pink: #ff2e9f;
+  --neon-purple: #b14cff; --gold: #ffd700; --red: #ff4d6d; --orange: #ff8800;
+  --green: #00ff88; --blue: #00b4ff; --text: #ffffff; --muted: #8b95b8;
+  --card: rgba(255,255,255,0.05); --border: rgba(0,255,224,0.2);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700;
+  user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+
+#app { height: 100vh; height: 100dvh; display: none; flex-direction: column;
+  background: radial-gradient(circle at 50% 20%, #2a0a4d 0%, #12042a 45%, var(--bg) 80%);
+  padding-top: env(safe-area-inset-top); position: relative; overflow: hidden; }
+
+.topbar { display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; background: rgba(0,0,0,0.4); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.pet-meta { display: flex; flex-direction: column; gap: 3px; cursor: pointer; }
+.pet-lvl-badge { font-size: 12px; color: var(--muted); letter-spacing: 0.5px; text-transform: uppercase; }
+.pet-lvl-badge span { color: var(--neon-cyan); text-shadow: 0 0 8px var(--neon-cyan); }
+.pet-label { font-size: 14px; font-weight: 900; }
+.balance { text-align: right; }
+.balance-val { font-size: 22px; font-weight: 900; color: var(--gold); text-shadow: 0 0 20px rgba(255,215,0,0.6); line-height: 1.1; }
+.balance-cur { font-size: 10px; color: var(--muted); letter-spacing: 1.5px; }
+
+main { flex: 1; display: flex; flex-direction: column; padding: 16px; overflow: hidden; gap: 14px; }
+.pet-stage { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 0 4px; position: relative; }
+.pet-avatar { font-size: 120px; line-height: 1; cursor: pointer; filter: drop-shadow(0 0 30px rgba(0,255,224,0.5)) drop-shadow(0 0 60px rgba(177,76,255,0.35));
+  transition: transform 0.1s ease; animation: float 3s ease-in-out infinite; user-select: none; -webkit-user-select: none; }
+.pet-avatar.pressed { transform: scale(0.9); }
+.pet-avatar.state-sad { filter: drop-shadow(0 0 25px rgba(255,77,109,0.6)); animation: wobble 1.2s ease-in-out infinite; }
+.pet-avatar.state-dead { filter: drop-shadow(0 0 20px rgba(150,150,150,0.4)) grayscale(0.8); animation: none; opacity: 0.7; }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes wobble { 0%,100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-4px) rotate(-4deg); } 75% { transform: translateY(-4px) rotate(4deg); } }
+.pet-status { font-size: 13px; color: var(--neon-cyan); font-weight: 800; margin-top: 8px; text-align: center; letter-spacing: 0.3px; text-shadow: 0 0 8px rgba(0,255,224,0.6); min-height: 18px; }
+
+.stats-wrap { display: flex; flex-direction: column; gap: 10px; }
+.stat-row { display: flex; align-items: center; gap: 10px; }
+.stat-icon { font-size: 22px; width: 30px; text-align: center; filter: drop-shadow(0 0 6px rgba(255,255,255,0.3)); }
+.stat-bar { flex: 1; height: 26px; background: rgba(0,0,0,0.5); border-radius: 20px; overflow: hidden; position: relative; border: 1px solid rgba(255,255,255,0.08); }
+.stat-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 20px; transition: width 0.3s ease; width: 100%; }
+.stat-hunger { background: linear-gradient(90deg, #ff4d6d, #ff8800); box-shadow: 0 0 12px rgba(255,77,109,0.6); }
+.stat-happiness { background: linear-gradient(90deg, #00ff88, #00ffcc); box-shadow: 0 0 12px rgba(0,255,136,0.5); }
+.stat-xp { background: linear-gradient(90deg, #00b4ff, #00ffe0); box-shadow: 0 0 12px rgba(0,180,255,0.5); }
+.stat-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,0.9); letter-spacing: 0.4px; }
+
+.boost-banner { text-align: center; padding: 8px 14px; border-radius: 12px; background: linear-gradient(90deg, rgba(255,215,0,0.15), rgba(255,46,159,0.15)); border: 1px solid rgba(255,215,0,0.35); font-size: 13px; font-weight: 900; color: var(--gold); text-shadow: 0 0 10px rgba(255,215,0,0.5); animation: pulse-banner 2s ease-in-out infinite; }
+@keyframes pulse-banner { 0%,100% { box-shadow: 0 0 15px rgba(255,215,0,0.2); } 50% { box-shadow: 0 0 30px rgba(255,215,0,0.5); } }
+
+.actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: auto; padding-bottom: env(safe-area-inset-bottom); }
+.action-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 6px; border: none; border-radius: 16px; font-family: inherit; font-weight: 900; cursor: pointer; transition: transform 0.1s, opacity 0.15s; box-shadow: 0 4px 14px rgba(0,0,0,0.4); color: #fff; }
+.action-btn:active { transform: scale(0.94); }
+.action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.action-ico { font-size: 26px; line-height: 1; }
+.action-lbl { font-size: 11px; font-weight: 900; letter-spacing: 0.3px; }
+.action-cost { font-size: 10px; font-weight: 800; opacity: 0.85; }
+.action-feed { background: linear-gradient(135deg, var(--red), var(--orange)); }
+.action-play { background: linear-gradient(135deg, var(--blue), var(--neon-cyan)); color: #002e3c; }
+.action-play .action-cost { color: #004c60; }
+.action-ad { background: linear-gradient(135deg, var(--neon-purple), var(--neon-pink)); }
+
+.particle-layer { position: fixed; inset: 0; pointer-events: none; z-index: 100; }
+.particle { position: absolute; font-size: 22px; pointer-events: none; animation: fly 0.75s cubic-bezier(0.2, 0.8, 0.3, 1) forwards; will-change: transform, opacity; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); }
+@keyframes fly { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.4) rotate(var(--rot)); opacity: 0; } }
+
+.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(26,10,46,0.98); border: 1px solid var(--neon-cyan); color: #fff; padding: 12px 20px; border-radius: 14px; font-size: 13px; font-weight: 800; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; z-index: 300; max-width: 88vw; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,0.6), 0 0 20px rgba(0,255,224,0.3); }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.auth-error { display: none; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 30px; text-align: center; background: var(--bg); }
+.auth-error.show { display: flex; }
+.auth-error .emoji { font-size: 64px; margin-bottom: 20px; }
+.auth-error h2 { font-size: 20px; margin-bottom: 10px; color: var(--red); }
+.auth-error p { font-size: 14px; color: var(--muted); line-height: 1.5; max-width: 320px; }
+
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 200; }
+.modal.open { display: flex; }
+.modal-box { background: linear-gradient(180deg, var(--bg-2), var(--bg)); border: 1px solid var(--border); border-radius: 20px; padding: 24px 20px; width: 100%; max-width: 360px; text-align: center; position: relative; max-height: 85vh; overflow-y: auto; }
+.modal-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 50%; border: none; background: rgba(255,255,255,0.1); color: #fff; font-size: 16px; font-weight: 900; cursor: pointer; }
+.profile-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+.pstat { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 12px 8px; }
+.pstat-num { font-size: 18px; font-weight: 900; color: var(--neon-cyan); text-shadow: 0 0 8px var(--neon-cyan); }
+.pstat-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.req-item { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; font-size: 13px; font-weight: 800; text-align: left; }
+.req-item .check { font-size: 16px; }
+.req-item .prog { margin-left: auto; color: var(--gold); font-size: 12px; }
+.btn { border: none; border-radius: 12px; padding: 12px; font-family: inherit; font-weight: 900; cursor: pointer; transition: transform 0.1s; width: 100%; font-size: 14px; }
+.btn:active { transform: scale(0.97); }
+.btn-green { background: linear-gradient(135deg, var(--green), #00b366); color: #003322; }
+.btn-gold { background: linear-gradient(135deg, var(--gold), #cc9900); color: #332200; }
+.dev-btn { margin-top:8px; padding:8px 14px; background:rgba(255,77,109,0.2); border:1px solid rgba(255,77,109,0.4); color:#ff4d6d; border-radius:10px; font-family:inherit; font-weight:900; font-size:11px; cursor:pointer; width: 100%; }
+</style>
+</head>
+<body>
+
+<div class="auth-error" id="authError">
+  <div class="emoji">🚫</div>
+  <h2>Открой через Telegram</h2>
+  <p>Это мини‑приложение работает только внутри Telegram. Запусти бота и нажми «Играть».</p>
+</div>
+
+<div id="app">
+  <header class="topbar">
+    <div class="pet-meta" id="petMeta">
+      <div class="pet-lvl-badge">LVL <span id="petLevel">1</span></div>
+      <div class="pet-label">🐉 <span id="petName">Дракоша</span></div>
+    </div>
+    <div class="balance">
+      <div class="balance-val">💰 <span id="balanceVal">0</span></div>
+      <div class="balance-cur">$AVAR</div>
+    </div>
+  </header>
+
+  <main>
+    <div class="pet-stage">
+      <div class="pet-avatar" id="petAvatar">🐉</div>
+      <div class="pet-status" id="petStatus">✨ Сыт и счастлив</div>
+    </div>
+
+    <div class="stats-wrap">
+      <div class="stat-row">
+        <div class="stat-icon">🍖</div>
+        <div class="stat-bar">
+          <div class="stat-fill stat-hunger" id="hungerFill"></div>
+          <span class="stat-text" id="hungerText">100 / 100</span>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-icon">😊</div>
+        <div class="stat-bar">
+          <div class="stat-fill stat-happiness" id="happinessFill"></div>
+          <span class="stat-text" id="happinessText">100 / 100</span>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-icon">⭐</div>
+        <div class="stat-bar">
+          <div class="stat-fill stat-xp" id="xpFill"></div>
+          <span class="stat-text" id="xpText">0 XP</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="boost-banner" id="boostBanner" style="display:none;">
+      🔥 x2 доход · <span id="boostTimer">0:00</span>
+    </div>
+
+    <div class="actions">
+      <button class="action-btn action-feed" id="feedBtn">
+        <span class="action-ico">🍖</span>
+        <span class="action-lbl">Покормить</span>
+        <span class="action-cost" id="feedCost">50 💰</span>
+      </button>
+      <button class="action-btn action-play" id="playBtn">
+        <span class="action-ico">🎾</span>
+        <span class="action-lbl">Поиграть</span>
+        <span class="action-cost" id="playCost">30 💰</span>
+      </button>
+      <button class="action-btn action-ad" id="adBtn">
+        <span class="action-ico">📺</span>
+        <span class="action-lbl" id="adBtnLbl">Реклама</span>
+        <span class="action-cost">Бесплатно</span>
+      </button>
+    </div>
+  </main>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal" id="profileModal">
+  <div class="modal-box">
+    <button class="modal-close" id="closeProfile">✕</button>
+    <div style="font-size:56px; margin-bottom:10px;">🐉</div>
+    <h2 style="font-size:18px; margin-bottom:6px;">Статистика</h2>
+    <div class="profile-stats">
+      <div class="pstat"><div class="pstat-num" id="pTotalEarned">0</div><div class="pstat-lbl">Заработано</div></div>
+      <div class="pstat"><div class="pstat-num" id="pDaysAlive">0</div><div class="pstat-lbl">Дней с питомцем</div></div>
+      <div class="pstat"><div class="pstat-num" id="pTaps">0</div><div class="pstat-lbl">Тапов</div></div>
+      <div class="pstat"><div class="pstat-num" id="pFeeds">0</div><div class="pstat-lbl">Кормлений</div></div>
+    </div>
+    
+    <div class="req-item" id="reqCoins">
+      <span class="check">❌</span>
+      <span>Накопить 10 000 000</span>
+      <span class="prog"><span id="wCoins">0</span>/10M</span>
+    </div>
+    <div class="req-item" id="reqOffer">
+      <span class="check">❌</span>
+      <span>Выполнить задание</span>
+      <span class="prog" id="offerStatus">Нет</span>
+    </div>
+    <button class="btn btn-gold" id="withdrawBtn" style="margin-top: 10px;">
+      💸 Withdraw (10 ⭐)
+    </button>
+    
+    <!-- DEV BUTTONS (Всегда видны для тебя) -->
+    <button class="dev-btn" id="devGrantCoinsBtn">🧪 +10M монет</button>
+    <button class="dev-btn" id="devCompleteOfferBtn">🧪 Toggle Offer</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+  </html>
