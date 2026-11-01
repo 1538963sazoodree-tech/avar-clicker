@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1020" />
+<title>$AVAR Clicker</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- Adsgram SDK (подключить после регистрации блока) -->
+<script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+<style>
+  :root {
+    --bg: #0b1020;
+    --bg-2: #131a3d;
+    --gold: #ffd54a;
+    --gold-2: #ffb800;
+    --cyan: #27e1ff;
+    --green: #3dff9e;
+    --red: #ff4d6d;
+    --text: #ffffff;
+    --muted: #8b95b8;
+    --card: rgba(255,255,255,0.06);
+    --border: rgba(255,213,74,0.22);
+    --nav-h: 64px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-weight: 700; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+  #app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; background: radial-gradient(circle at 50% 0%, #1a2450 0%, var(--bg) 70%); padding-top: env(safe-area-inset-top); position: relative; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: rgba(0,0,0,0.35); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .user-block { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .avatar { width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, var(--gold), var(--gold-2)); display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 0 16px rgba(255,213,74,0.45); border: 2px solid rgba(255,255,255,0.15); }
+  .user-meta { display: flex; flex-direction: column; gap: 2px; }
+  .lvl { font-size: 12px; color: var(--muted); letter-spacing: 0.3px; }
+  .lvl span { color: var(--gold); }
+  .balance { text-align: right; }
+  .balance-val { font-size: 22px; font-weight: 900; color: var(--gold); text-shadow: 0 0 20px rgba(255,213,74,0.55); line-height: 1.1; }
+  .balance-cur { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+  .energy-wrap { padding: 8px 14px 6px; flex-shrink: 0; }
+  .energy-bar { height: 26px; background: rgba(0,0,0,0.45); border-radius: 20px; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.08); }
+  .energy-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(90deg, var(--cyan), var(--green)); border-radius: 20px; transition: width 0.25s ease; }
+  .energy-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; text-shadow: 0 1px 3px rgba(0,0,0,0.8); letter-spacing: 0.5px; }
+  main { flex: 1; position: relative; overflow: hidden; }
+  .screen { display: none; flex-direction: column; padding: 12px 14px; height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .screen.active { display: flex; }
+  .screen-title { font-size: 20px; font-weight: 900; color: var(--gold); text-align: center; margin-bottom: 14px; text-shadow: 0 0 15px rgba(255,213,74,0.4); }
+
+  /* MINE */
+  #screen-mine { justify-content: center; align-items: center; padding: 20px; }
+  .mine-hint { font-size: 14px; color: var(--muted); margin-bottom: 24px; text-align: center; }
+  .mine-btn { width: min(65vw, 260px); height: min(65vw, 260px); border-radius: 50%; background: radial-gradient(circle at 32% 28%, #fff3b0 0%, var(--gold) 35%, var(--gold-2) 78%, #8a6800 100%); border: 6px solid rgba(255,248,220,0.9); box-shadow: 0 0 45px rgba(255,213,74,0.55), 0 12px 30px rgba(0,0,0,0.5), inset 0 -8px 20px rgba(0,0,0,0.25); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: transform 0.08s cubic-bezier(0.4, 0, 0.2, 1); padding: 0; font-family: inherit; }
+  .mine-btn.pressed { transform: scale(0.92); }
+  .mine-emoji { font-size: 68px; line-height: 1; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.3)); }
+  .mine-label { font-size: 20px; font-weight: 900; color: #4a2c00; letter-spacing: 1px; text-shadow: 0 1px 0 rgba(255,255,255,0.3); }
+
+  /* PARTICLE LAYER */
+  .particle-layer { position: fixed; inset: 0; pointer-events: none; z-index: 100; }
+  .particle { position: absolute; font-size: 22px; pointer-events: none; animation: fly 0.7s cubic-bezier(0.2, 0.8, 0.3, 1) forwards; will-change: transform, opacity; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); }
+  @keyframes fly { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; } 100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(1.3) rotate(var(--rot)); opacity: 0; } }
+
+  /* BOOSTS / TASKS / PROFILE */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 14px; display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .card-icon { font-size: 32px; flex-shrink: 0; }
+  .card-info { flex: 1; min-width: 0; }
+  .card-name { font-size: 15px; font-weight: 900; margin-bottom: 3px; }
+  .card-desc { font-size: 11px; color: var(--muted); font-weight: 700; line-height: 1.3; }
+  .btn { border: none; border-radius: 12px; padding: 10px 12px; font-family: inherit; font-weight: 900; cursor: pointer; transition: transform 0.1s, opacity 0.15s; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .btn:active { transform: scale(0.95); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-gold { background: linear-gradient(135deg, var(--gold), var(--gold-2)); color: #4a2c00; }
+  .btn-cyan { background: linear-gradient(135deg, var(--cyan), #0099cc); color: #fff; }
+  .btn-green { background: linear-gradient(135deg, var(--green), #00b366); color: #003322; }
+  .btn-red { background: linear-gradient(135deg, #ff6b35, #f7931e); color: #fff; }
+  .big-btn { width: 100%; padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 3px; margin-bottom: 12px; }
+  .big-btn .ico { font-size: 26px; }
+  .big-btn .txt { font-size: 16px; }
+  .big-btn .sub { font-size: 11px; opacity: 0.9; }
+  .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; text-align: center; }
+  .stat-num { font-size: 22px; font-weight: 900; color: var(--gold); }
+  .stat-lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .req-item { display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; font-size: 13px; font-weight: 800; }
+  .req-item .check { font-size: 16px; }
+  .req-item .prog { margin-left: auto; color: var(--gold); font-size: 12px; }
+
+  /* NAV */
+  .bottom-nav { display: grid; grid-template-columns: repeat(3, 1fr); background: rgba(0,0,0,0.5); border-top: 1px solid var(--border); padding: 6px 4px calc(6px + env(safe-area-inset-bottom)); flex-shrink: 0; }
+  .nav-btn { background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px; cursor: pointer; color: var(--muted); font-family: inherit; border-radius: 10px; transition: color 0.15s, background 0.15s; }
+  .nav-btn .ico { font-size: 22px; line-height: 1; transition: transform 0.15s; }
+  .nav-btn .lbl { font-size: 10px; font-weight: 900; letter-spacing: 0.3px; }
+  .nav-btn.active { color: var(--gold); background: rgba(255,213,74,0.08); }
+  .nav-btn.active .ico { transform: translateY(-2px); }
+
+  /* PROFILE MODAL */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 200; }
+  .modal.open { display: flex; }
+  .modal-box { background: linear-gradient(180deg, var(--bg-2), var(--bg)); border: 1px solid var(--border); border-radius: 20px; padding: 24px 20px; width: 100%; max-width: 380px; text-align: center; position: relative; max-height: 85vh; overflow-y: auto; }
+  .modal-close { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 50%; border: none; background: rgba(255,255,255,0.1); color: #fff; font-size: 16px; font-weight: 900; cursor: pointer; }
+  .profile-avatar { width: 84px; height: 84px; border-radius: 24px; margin: 0 auto 12px; background: linear-gradient(135deg, var(--gold), var(--gold-2)); display: flex; align-items: center; justify-content: center; font-size: 44px; box-shadow: 0 0 30px rgba(255,213,74,0.5); border: 3px solid rgba(255,255,255,0.15); }
+  .profile-name { font-size: 20px; font-weight: 900; margin-bottom: 6px; }
+  .profile-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+  .pstat { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 12px 8px; }
+  .pstat-num { font-size: 18px; font-weight: 900; color: var(--gold); }
+  .pstat-lbl { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: calc(var(--nav-h) + 30px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%) translateY(20px); background: rgba(19,26,61,0.98); border: 1px solid var(--gold); color: #fff; padding: 12px 20px; border-radius: 14px; font-size: 13px; font-weight: 800; opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; z-index: 300; max-width: 88vw; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Ошибка авторизации */
+  .auth-error { display: none; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 30px; text-align: center; background: var(--bg); }
+  .auth-error.show { display: flex; }
+  .auth-error .emoji { font-size: 64px; margin-bottom: 20px; }
+  .auth-error h2 { font-size: 20px; margin-bottom: 10px; color: var(--red); }
+  .auth-error p { font-size: 14px; color: var(--muted); line-height: 1.5; max-width: 320px; }
+</style>
+</head>
+<body>
+
+<!-- Экран ошибки, если открыто вне Telegram -->
+<div class="auth-error" id="authError">
+  <div class="emoji">🚫</div>
+  <h2>Открой через Telegram</h2>
+  <p>Это мини‑приложение работает только внутри Telegram. Запусти бота и нажми «Играть».</p>
+</div>
+
+<div id="app" style="display: none;">
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="user-block" id="userBlock">
+      <div class="avatar" id="avatar">🐹</div>
+      <div class="user-meta">
+        <div class="lvl">LVL <span id="levelVal">1</span></div>
+      </div>
+    </div>
+    <div class="balance">
+      <div class="balance-val">💰 <span id="balanceVal">0</span></div>
+      <div class="balance-cur">$AVAR</div>
+    </div>
+  </header>
+
+  <!-- ENERGY -->
+  <div class="energy-wrap">
+    <div class="energy-bar">
+      <div class="energy-fill" id="energyFill"></div>
+      <div class="energy-label"><span id="energyVal">1000</span> / <span id="energyMax">1000</span> ⚡</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <main>
+    <!-- MINE -->
+    <section class="screen active" id="screen-mine">
+      <div class="mine-hint">Тапай, чтобы майнить $AVAR!</div>
+      <button class="mine-btn" id="mineBtn" aria-label="Mine">
+        <span class="mine-emoji">🐹</span>
+        <span class="mine-label">MINE</span>
+      </button>
+    </section>
+
+    <!-- BOOSTS -->
+    <section class="screen" id="screen-boosts">
+      <h2 class="screen-title">🚀 Бусты</h2>
+      <div class="card">
+        <div class="card-icon">💪</div>
+        <div class="card-info">
+          <div class="card-name">Сила тапа</div>
+          <div class="card-desc">+1 монета за тап · Ур. <span id="tapLvl">0</span></div>
+        </div>
+        <button class="btn btn-gold" id="buyTapBtn">100 💰</button>
+      </div>
+      <div class="card">
+        <div class="card-icon">🤖</div>
+        <div class="card-info">
+          <div class="card-name">Автокликер</div>
+          <div class="card-desc">+1 монета/сек · Ур. <span id="autoLvl">0</span></div>
+        </div>
+        <button class="btn btn-gold" id="buyAutoBtn">500 💰</button>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚡</div>
+        <div class="card-info">
+          <div class="card-name">Восстановить энергию</div>
+          <div class="card-desc">Полный заряд за рекламу</div>
+        </div>
+        <button class="btn btn-cyan" id="restoreEnergyBtn">📺 Смотреть</button>
+      </div>
+    </section>
+
+    <!-- TASKS / FRIENDS -->
+    <section class="screen" id="screen-tasks">
+      <h2 class="screen-title">🎯 Задания</h2>
+
+      <div class="stat-row">
+        <div class="stat"><div class="stat-num" id="friendsCount">0</div><div class="stat-lbl">Друзей</div></div>
+        <div class="stat"><div class="stat-num" id="withdrawAdsCount">0</div><div class="stat-lbl">Реклам для вывода</div></div>
+      </div>
+
+      <button class="btn big-btn btn-red" id="earnMoreBtn">
+        <span class="ico">💎</span>
+        <span class="txt">Выполнить задания</span>
+        <span class="sub">Заработай миллионы $AVAR</span>
+      </button>
+
+      <div class="card">
+        <div class="card-icon">🔥</div>
+        <div class="card-info">
+          <div class="card-name">Буст дохода x2</div>
+          <div class="card-desc" id="boostX2Desc">На 2 часа</div>
+        </div>
+        <button class="btn btn-cyan" id="boostX2Btn">📺 Смотреть</button>
+      </div>
+
+      <button class="btn big-btn btn-green" id="inviteBtn">
+        <span class="ico">🔗</span>
+        <span class="txt">Пригласить друга</span>
+        <span class="sub">+5000 💰 и +1 ⚡ навсегда</span>
+      </button>
+    </section>
+
+    <!-- PROFILE -->
+    <section class="screen" id="screen-profile">
+      <h2 class="screen-title">👤 Профиль</h2>
+      <div class="stat-row">
+        <div class="stat"><div class="stat-num" id="pTotalEarned">0</div><div class="stat-lbl">Всего заработано</div></div>
+        <div class="stat"><div class="stat-num" id="pTaps">0</div><div class="stat-lbl">Тапов</div></div>
+      </div>
+      <button class="btn big-btn btn-gold" id="withdrawBtn" style="margin-top: 10px;">
+        <span class="ico">💸</span>
+        <span class="txt">Withdraw</span>
+        <span class="sub">10 000 000 = 1 ⭐ (нужно 50 реклам)</span>
+      </button>
+      <div class="req-item" id="reqCoins">
+        <span class="check">❌</span>
+        <span>Накопить 10 000 000</span>
+        <span class="prog"><span id="wCoins">0</span>/10M</span>
+      </div>
+      <div class="req-item" id="reqAds">
+        <span class="check">❌</span>
+        <span>Посмотреть 50 реклам</span>
+        <span class="prog"><span id="wAds">0</span>/50</span>
+      </div>
+      <button class="btn big-btn btn-green" id="saveBtn" style="margin-top: 10px;">
+        <span class="txt">💾 Сохранить прогресс</span>
+      </button>
+    </section>
+  </main>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-tab="mine"><span class="ico">⛏️</span><span class="lbl">Майн</span></button>
+    <button class="nav-btn" data-tab="boosts"><span class="ico">🚀</span><span class="lbl">Бусты</span></button>
+    <button class="nav-btn" data-tab="tasks"><span class="ico">🎯</span><span class="lbl">Задания</span></button>
+    <button class="nav-btn" data-tab="profile"><span class="ico">👤</span><span class="lbl">Профиль</span></button>
+  </nav>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal" id="profileModal">
+  <div class="modal-box">
+    <button class="modal-close" id="closeProfile">✕</button>
+    <div class="profile-avatar" id="profileAvatar">🐹</div>
+    <h2 class="profile-name" id="profileName">Игрок</h2>
+    <div class="profile-stats">
+      <div class="pstat"><div class="pstat-num" id="mTotalEarned">0</div><div class="pstat-lbl">Заработано</div></div>
+      <div class="pstat"><div class="pstat-num" id="mTaps">0</div><div class="pstat-lbl">Тапов</div></div>
+      <div class="pstat"><div class="pstat-num" id="mFriends">0</div><div class="pstat-lbl">Друзей</div></div>
+      <div class="pstat"><div class="pstat-num" id="mLevel">1</div><div class="pstat-lbl">Уровень</div></div>
+    </div>
+    <button class="btn big-btn btn-green" id="modalSaveBtn"><span class="txt">💾 Сохранить</span></button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+  </html>
